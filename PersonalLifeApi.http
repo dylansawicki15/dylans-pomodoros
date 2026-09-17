@@ -1,0 +1,6 @@
+@PersonalLifeApi_HostAddress = http://localhost:5023
+
+GET {{PersonalLifeApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
