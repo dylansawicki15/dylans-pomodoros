@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration.UserSecrets;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,15 +14,16 @@ habiticaClient.DefaultRequestHeaders.Add("x-api-user", builder.Configuration["Ha
 habiticaClient.DefaultRequestHeaders.Add("x-api-key", builder.Configuration["Habitica:ApiToken"]);
 habiticaClient.DefaultRequestHeaders.Add("x-client", $"{builder.Configuration["Habitica:UserId"]}-PersonalLifeApi");
 
-var habiticaUserData = await habiticaClient.GetAsync("https://habitica.com/api/v3/tasks/user");
-var habiticaRawJson = await habiticaUserData.Content.ReadAsStringAsync();
-Console.WriteLine(habiticaRawJson);
+var habiticaJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-/* app.MapGet("/habitica", () =>
+app.MapGet("/habitica/raw", async () =>
 {
-    return habiticaUserData.Content;
+    var habiticaUserData = await habiticaClient.GetAsync("https://habitica.com/api/v3/tasks/user");
+    var habiticaRawJson = await habiticaUserData.Content.ReadAsStringAsync();
+    var habiticaJson = JsonSerializer.Deserialize<HabiticaTasksResponse>(habiticaRawJson, habiticaJsonOptions);
+    return habiticaJson;
 })
-.WithName("GetHabitica"); */
+.WithName("GetHabiticaRaw");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -63,3 +65,6 @@ record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
+
+record HabiticaTask(string Type, string Text);
+record HabiticaTasksResponse(bool Success, List<HabiticaTask> Data);
