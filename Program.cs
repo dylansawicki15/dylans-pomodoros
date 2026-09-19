@@ -1,5 +1,8 @@
 using Microsoft.Extensions.Configuration.UserSecrets;
+using System.Net.Http.Headers;
+using System.Security.Principal;
 using System.Text.Json;
+using System.Xml.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,12 +64,36 @@ async Task<GoogleTokenResponse> GetGoogleAccessTokenAsync()
     return JsonSerializer.Deserialize<GoogleTokenResponse>(rawJson, googleJsonOptions);
 }
 
-app.MapGet("/calendar/token", async () =>
+async Task<string> GetCalendarEventsRawAsync()
 {
     var token = await GetGoogleAccessTokenAsync();
-    return Results.Ok(new { expiresIn = token.ExpiresIn });
+
+    var url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
+        + "?timeMin=" + DateTime.UtcNow.ToString("o")
+        + "&maxResults=10"
+        + "&singleEvents=true"
+        + "&orderBy=startTime";
+
+    var request = new HttpRequestMessage(HttpMethod.Get, url);
+    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
+
+    var googleData = await googleClient.SendAsync(request);
+    if (!googleData.IsSuccessStatusCode)
+    {
+        // this is my project, and this is my error message
+        throw new HttpRequestException($"Google said you done messed something up my brother, something with this number {(int)googleData.StatusCode}");
+    }
+
+    var googleRawJson = await googleData.Content.ReadAsStringAsync();
+    return googleRawJson;
+}
+
+app.MapGet("/calendar/raw", async () =>
+{
+    var rawJson = await GetCalendarEventsRawAsync();
+    return Results.Content(rawJson, "application/json");
 })
-.WithName("GetGoogleToken");
+.WithName("GetCalendarRaw");
 
 if (app.Environment.IsDevelopment())
 {
