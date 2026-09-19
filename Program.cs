@@ -3,8 +3,6 @@ using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -35,7 +33,41 @@ app.MapGet("/habitica/raw", async () =>
 })
 .WithName("GetHabiticaRaw");
 
-// Configure the HTTP request pipeline.
+using var googleClient = new HttpClient();
+
+var googleJsonOptions = new JsonSerializerOptions { 
+    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    PropertyNameCaseInsensitive = true,
+};
+
+async Task<GoogleTokenResponse> GetGoogleAccessTokenAsync()
+{
+    var form = new FormUrlEncodedContent(new Dictionary<string, string>
+    {
+        ["client_id"] = builder.Configuration["Google:ClientId"],
+        ["client_secret"] = builder.Configuration["Google:ClientSecret"],
+        ["refresh_token"] = builder.Configuration["Google:RefreshToken"],
+        ["grant_type"] = "refresh_token",
+    });
+
+    var response = await googleClient.PostAsync("https://oauth2.googleapis.com/token", form);
+
+    if (!response.IsSuccessStatusCode)
+    {
+        throw new HttpRequestException($"Google token exchange returned {(int)response.StatusCode}");
+    }
+
+    var rawJson = await response.Content.ReadAsStringAsync();
+    return JsonSerializer.Deserialize<GoogleTokenResponse>(rawJson, googleJsonOptions);
+}
+
+app.MapGet("/calendar/token", async () =>
+{
+    var token = await GetGoogleAccessTokenAsync();
+    return Results.Ok(new { expiresIn = token.ExpiresIn });
+})
+.WithName("GetGoogleToken");
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -64,8 +96,6 @@ app.MapGet("/weatherforecast", () =>
 
 app.MapGet("/health", () =>
 {
-    // TODO(you): return a simple response showing the API is alive —
-    // e.g. a plain string, or an object like new { status = "ok" }
     return "it is indeed a matter of fact that we are unoffline";
 });
 
@@ -78,3 +108,5 @@ record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 
 record HabiticaTask(string Type, string Text);
 record HabiticaTasksResponse(bool Success, List<HabiticaTask> Data);
+
+record GoogleTokenResponse(string AccessToken, double ExpiresIn);
