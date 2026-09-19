@@ -38,10 +38,12 @@ app.MapGet("/habitica/raw", async () =>
 
 using var googleClient = new HttpClient();
 
-var googleJsonOptions = new JsonSerializerOptions { 
+var googleJsonOptions = new JsonSerializerOptions {
     PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
     PropertyNameCaseInsensitive = true,
 };
+
+var calendarJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
 async Task<GoogleTokenResponse> GetGoogleAccessTokenAsync()
 {
@@ -64,7 +66,7 @@ async Task<GoogleTokenResponse> GetGoogleAccessTokenAsync()
     return JsonSerializer.Deserialize<GoogleTokenResponse>(rawJson, googleJsonOptions);
 }
 
-async Task<string> GetCalendarEventsRawAsync()
+async Task<GoogleEventsResponse> GetCalendarEventsRawAsync()
 {
     var token = await GetGoogleAccessTokenAsync();
 
@@ -85,13 +87,21 @@ async Task<string> GetCalendarEventsRawAsync()
     }
 
     var googleRawJson = await googleData.Content.ReadAsStringAsync();
-    return googleRawJson;
+
+    return JsonSerializer.Deserialize<GoogleEventsResponse>(googleRawJson, calendarJsonOptions);
 }
 
 app.MapGet("/calendar/raw", async () =>
 {
-    var rawJson = await GetCalendarEventsRawAsync();
-    return Results.Content(rawJson, "application/json");
+    try
+    {
+        var events = await GetCalendarEventsRawAsync();
+        return Results.Ok(events);
+    }
+    catch (HttpRequestException ex)
+    {
+        return Results.Problem(detail: ex.Message, statusCode: 502);
+    }
 })
 .WithName("GetCalendarRaw");
 
@@ -137,3 +147,14 @@ record HabiticaTask(string Type, string Text);
 record HabiticaTasksResponse(bool Success, List<HabiticaTask> Data);
 
 record GoogleTokenResponse(string AccessToken, double ExpiresIn);
+
+record GoogleEventTime(string? DateTime, string? TimeZone);
+
+record GoogleCalendarEvent(
+    string Id,
+    string? Summary,
+    GoogleEventTime Start,
+    GoogleEventTime End
+);
+
+record GoogleEventsResponse(List<GoogleCalendarEvent> Items);
