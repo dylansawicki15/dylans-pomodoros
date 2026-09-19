@@ -19,9 +19,19 @@ var habiticaJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitiv
 app.MapGet("/habitica/raw", async () =>
 {
     var habiticaUserData = await habiticaClient.GetAsync("https://habitica.com/api/v3/tasks/user");
+
+    if (!habiticaUserData.IsSuccessStatusCode)
+    {
+        return Results.Problem(
+            detail: $"Habitica returned {(int)habiticaUserData.StatusCode}", 
+            statusCode: 502
+        );
+    }
+
     var habiticaRawJson = await habiticaUserData.Content.ReadAsStringAsync();
     var habiticaJson = JsonSerializer.Deserialize<HabiticaTasksResponse>(habiticaRawJson, habiticaJsonOptions);
-    return habiticaJson;
+
+    return Results.Ok(habiticaJson);
 })
 .WithName("GetHabiticaRaw");
 
