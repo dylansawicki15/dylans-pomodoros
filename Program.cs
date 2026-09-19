@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration.UserSecrets;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -5,6 +7,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+using var habiticaClient = new HttpClient();
+habiticaClient.DefaultRequestHeaders.Add("x-api-user", builder.Configuration["Habitica:UserId"]);
+habiticaClient.DefaultRequestHeaders.Add("x-api-key", builder.Configuration["Habitica:ApiToken"]);
+habiticaClient.DefaultRequestHeaders.Add("x-client", $"{builder.Configuration["Habitica:UserId"]}-PersonalLifeApi");
+
+var habiticaUserData = await habiticaClient.GetAsync("https://habitica.com/api/v3/tasks/user");
+var habiticaRawJson = await habiticaUserData.Content.ReadAsStringAsync();
+Console.WriteLine(habiticaRawJson);
+
+/* app.MapGet("/habitica", () =>
+{
+    return habiticaUserData.Content;
+})
+.WithName("GetHabitica"); */
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
