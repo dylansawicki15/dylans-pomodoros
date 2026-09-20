@@ -72,7 +72,8 @@ async Task<GoogleEventsResponse> GetCalendarEventsRawAsync()
 
     var url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
         + "?timeMin=" + DateTime.UtcNow.ToString("o")
-        + "&maxResults=10"
+        + "&timeMax=" + DateTime.UtcNow.AddMonths(1).ToString("o")
+        + "&maxResults=300"
         + "&singleEvents=true"
         + "&orderBy=startTime";
 
