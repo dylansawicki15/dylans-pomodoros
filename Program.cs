@@ -1,3 +1,4 @@
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using System.Net.Http.Headers;
 using System.Security.Principal;
@@ -7,6 +8,7 @@ using System.Xml.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddDbContext<FeedDbContext>(options => options.UseSqlite("DataSource=feed.db"));
 
 var app = builder.Build();
 
@@ -168,4 +170,10 @@ class FeedItem
     public string? Title { get; set; }
     public DateTimeOffset Starts { get; set; }
     public DateTimeOffset Ends { get; set; }
+}
+
+class FeedDbContext : DbContext
+{
+    public FeedDbContext(DbContextOptions<FeedDbContext> options) : base(options) { }
+    public DbSet<FeedItem> FeedItems { get; set; } = null!;
 }
