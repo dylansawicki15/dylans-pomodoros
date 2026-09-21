@@ -159,3 +159,13 @@ record GoogleCalendarEvent(
 );
 
 record GoogleEventsResponse(List<GoogleCalendarEvent> Items);
+
+class FeedItem
+{
+    public int Id { get; set; }
+    public required string Source { get; set; }
+    public required string SourceId { get; set; }
+    public string? Title { get; set; }
+    public DateTimeOffset Starts { get; set; }
+    public DateTimeOffset Ends { get; set; }
+}
