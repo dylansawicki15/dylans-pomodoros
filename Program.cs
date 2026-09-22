@@ -126,6 +126,14 @@ app.MapPost("/sync", async (FeedDbContext db) =>
 {
     var events = await GetCalendarEventsRawAsync();
     var skipped = 0;
+    var added = 0;
+    var updated = 0;
+
+    // Ask the database once for everything this connector has already stored,
+    // keyed so the loop can look an event up without another round trip.
+    var existingBySourceId = await db.FeedItems
+        .Where(f => f.Source == "google")
+        .ToDictionaryAsync(f => f.SourceId);
 
     foreach (var e in events.Items)
     {
@@ -135,16 +143,28 @@ app.MapPost("/sync", async (FeedDbContext db) =>
             continue;
         }
 
-        var item = new FeedItem
+        if (existingBySourceId.TryGetValue(e.Id, out var existing))
         {
-            Source = "google",
-            SourceId = e.Id,
-            Title = e.Summary,
-            Starts = DateTimeOffset.Parse(e.Start.DateTime),
-            Ends = DateTimeOffset.Parse(e.End.DateTime),
-        };
+            existing.Title = e.Summary;
+            existing.Starts = DateTimeOffset.Parse(e.Start.DateTime);
+            existing.Ends = DateTimeOffset.Parse(e.End.DateTime);
 
-        db.FeedItems.Add(item);
+            updated++;
+        }
+        else
+        {
+            var item = new FeedItem
+            {
+                Source = "google",
+                SourceId = e.Id,
+                Title = e.Summary,
+                Starts = DateTimeOffset.Parse(e.Start.DateTime),
+                Ends = DateTimeOffset.Parse(e.End.DateTime),
+            };
+
+            db.FeedItems.Add(item);
+            added++;
+        }
     }
 
     await db.SaveChangesAsync();
@@ -153,6 +173,8 @@ app.MapPost("/sync", async (FeedDbContext db) =>
     {
         fetched = events.Items.Count,
         skipped,
+        updated,
+        added,
         stored = await db.FeedItems.CountAsync()
     });
 })

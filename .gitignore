@@ -1,4 +1,4 @@
 bin/
 obj/
 learning/
-*.db
+feed.db*
