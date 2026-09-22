@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration.UserSecrets;
+using SQLitePCL;
 using System.Net.Http.Headers;
 using System.Security.Principal;
 using System.Text.Json;
@@ -18,6 +19,8 @@ habiticaClient.DefaultRequestHeaders.Add("x-api-key", builder.Configuration["Hab
 habiticaClient.DefaultRequestHeaders.Add("x-client", $"{builder.Configuration["Habitica:UserId"]}-PersonalLifeApi");
 
 var habiticaJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+const string JSON_DESERIALIZER_ERROR_MSG = "Listen brother. Whatever you just received from google isn't polished enough to be parsed by the JsonSerializer function. I think it's time for some maintenance brother.";
 
 app.MapGet("/habitica/raw", async () =>
 {
@@ -65,7 +68,13 @@ async Task<GoogleTokenResponse> GetGoogleAccessTokenAsync()
     }
 
     var rawJson = await response.Content.ReadAsStringAsync();
-    return JsonSerializer.Deserialize<GoogleTokenResponse>(rawJson, googleJsonOptions);
+
+    var result = JsonSerializer.Deserialize<GoogleTokenResponse>(rawJson, googleJsonOptions);
+    if (result == null)
+    {
+        throw new HttpRequestException(JSON_DESERIALIZER_ERROR_MSG);
+    }
+    return result;
 }
 
 async Task<GoogleEventsResponse> GetCalendarEventsRawAsync()
@@ -91,7 +100,12 @@ async Task<GoogleEventsResponse> GetCalendarEventsRawAsync()
 
     var googleRawJson = await googleData.Content.ReadAsStringAsync();
 
-    return JsonSerializer.Deserialize<GoogleEventsResponse>(googleRawJson, calendarJsonOptions);
+    var result = JsonSerializer.Deserialize<GoogleEventsResponse>(googleRawJson, calendarJsonOptions);
+    if (result == null)
+    {
+        throw new HttpRequestException(JSON_DESERIALIZER_ERROR_MSG);
+    }
+    return result;
 }
 
 app.MapGet("/calendar/raw", async () =>
@@ -107,6 +121,42 @@ app.MapGet("/calendar/raw", async () =>
     }
 })
 .WithName("GetCalendarRaw");
+
+app.MapPost("/sync", async (FeedDbContext db) =>
+{
+    var events = await GetCalendarEventsRawAsync();
+    var skipped = 0;
+
+    foreach (var e in events.Items)
+    {
+        if (e.Start.DateTime == null || e.End.DateTime == null)
+        {
+            skipped++;
+            continue;
+        }
+
+        var item = new FeedItem
+        {
+            Source = "google",
+            SourceId = e.Id,
+            Title = e.Summary,
+            Starts = DateTimeOffset.Parse(e.Start.DateTime),
+            Ends = DateTimeOffset.Parse(e.End.DateTime),
+        };
+
+        db.FeedItems.Add(item);
+    }
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new
+    {
+        fetched = events.Items.Count,
+        skipped,
+        stored = await db.FeedItems.CountAsync()
+    });
+})
+.WithName("SyncCalendar");
 
 if (app.Environment.IsDevelopment())
 {
