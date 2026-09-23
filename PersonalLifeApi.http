@@ -4,3 +4,13 @@ GET {{PersonalLifeApi_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+POST {{PersonalLifeApi_HostAddress}}/pomodoros
+Content-Type: application/json
+
+[
+  { "id": 9001, "profileName": null, "duration": 25, "endTime": "2026-09-23T10:25:00+00:00" },
+  { "id": 9002, "profileName": null, "duration": 25, "endTime": "2026-09-23T11:00:00+00:00" }
+]
+
+###

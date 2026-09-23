@@ -1,7 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using SQLitePCL;
 using System.Net.Http.Headers;
+using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Text.Json;
 using System.Xml.Serialization;
@@ -180,6 +182,52 @@ app.MapPost("/sync", async (FeedDbContext db) =>
 })
 .WithName("SyncCalendar");
 
+app.MapPost("/pomodoros", async (List<PomodoroPush> pomodoros, FeedDbContext db) =>
+{
+    var added = 0;
+    var updated = 0;
+
+    var existingBySourceId = await db.FeedItems
+        .Where(p => p.Source == "yapa")
+        .ToDictionaryAsync(p => p.SourceId);
+
+    foreach (var p in pomodoros)
+    {
+        var sourceId = p.Id.ToString();
+        var ends = p.EndTime;
+        var starts = ends.AddMinutes(-p.Duration);
+
+        if (existingBySourceId.TryGetValue(sourceId, out var existing))
+        {
+            existing.Title = p.ProfileName;
+            existing.Starts = starts;
+            existing.Ends = ends;
+            updated++;
+        }
+        else
+        {
+
+            var item = new FeedItem
+            {
+                Source = "yapa",
+                SourceId = sourceId,
+                Title = p.ProfileName,
+                Starts = starts,
+                Ends = ends,
+            };
+
+            db.FeedItems.Add(item);
+            added++;
+        }
+
+    }
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { received = pomodoros.Count, updated, added });
+})
+.WithName("PushPomodoros");
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -233,6 +281,13 @@ record GoogleCalendarEvent(
 );
 
 record GoogleEventsResponse(List<GoogleCalendarEvent> Items);
+
+record PomodoroPush(
+    int Id,
+    string? ProfileName,
+    int Duration,
+    DateTimeOffset EndTime
+);
 
 class FeedItem
 {
