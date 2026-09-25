@@ -228,6 +228,16 @@ app.MapPost("/pomodoros", async (List<PomodoroPush> pomodoros, FeedDbContext db)
 })
 .WithName("PushPomodoros");
 
+app.MapGet("/feed", async (FeedDbContext db) =>
+{
+    var items = (await db.FeedItems.ToListAsync()) 
+    .OrderBy(x => x.Starts)
+    .Select(x => new FeedItemResponse(x.Source, x.SourceId, x.Title, x.Starts, x.Ends));
+
+    return Results.Ok(items);
+})
+.WithName("GetFeed");
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -281,6 +291,15 @@ record GoogleCalendarEvent(
 );
 
 record GoogleEventsResponse(List<GoogleCalendarEvent> Items);
+
+// What GET /feed promises to clients. Deliberately not FeedItem: the table's shape can change without changing the API.
+record FeedItemResponse(
+    string Source,
+    string SourceId,
+    string? Title,
+    DateTimeOffset Starts,
+    DateTimeOffset Ends 
+);
 
 record PomodoroPush(
     int Id,
