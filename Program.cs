@@ -15,33 +15,7 @@ builder.Services.AddDbContext<FeedDbContext>(options => options.UseSqlite("DataS
 
 var app = builder.Build();
 
-using var habiticaClient = new HttpClient();
-habiticaClient.DefaultRequestHeaders.Add("x-api-user", builder.Configuration["Habitica:UserId"]);
-habiticaClient.DefaultRequestHeaders.Add("x-api-key", builder.Configuration["Habitica:ApiToken"]);
-habiticaClient.DefaultRequestHeaders.Add("x-client", $"{builder.Configuration["Habitica:UserId"]}-PersonalLifeApi");
-
-var habiticaJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
 const string JSON_DESERIALIZER_ERROR_MSG = "Listen brother. Whatever you just received from google isn't polished enough to be parsed by the JsonSerializer function. I think it's time for some maintenance brother.";
-
-app.MapGet("/habitica/raw", async () =>
-{
-    var habiticaUserData = await habiticaClient.GetAsync("https://habitica.com/api/v3/tasks/user");
-
-    if (!habiticaUserData.IsSuccessStatusCode)
-    {
-        return Results.Problem(
-            detail: $"Habitica returned {(int)habiticaUserData.StatusCode}", 
-            statusCode: 502
-        );
-    }
-
-    var habiticaRawJson = await habiticaUserData.Content.ReadAsStringAsync();
-    var habiticaJson = JsonSerializer.Deserialize<HabiticaTasksResponse>(habiticaRawJson, habiticaJsonOptions);
-
-    return Results.Ok(habiticaJson);
-})
-.WithName("GetHabiticaRaw");
 
 using var googleClient = new HttpClient();
 
@@ -184,6 +158,15 @@ app.MapPost("/sync", async (FeedDbContext db) =>
 
 app.MapPost("/pomodoros", async (List<PomodoroPush> pomodoros, FeedDbContext db) =>
 {
+    foreach (var p in pomodoros)
+    {
+        var validPomodoro = p.Id > 0 && p.Duration > 0 && p.EndTime != default;
+        if (!validPomodoro)
+        {
+            return Results.BadRequest($"Pomodoro {p.Id} is missing its id, duration or end time.");
+        }
+    }
+
     var added = 0;
     var updated = 0;
 
@@ -275,9 +258,6 @@ record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
-
-record HabiticaTask(string Type, string Text);
-record HabiticaTasksResponse(bool Success, List<HabiticaTask> Data);
 
 record GoogleTokenResponse(string AccessToken, double ExpiresIn);
 
