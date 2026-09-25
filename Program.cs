@@ -10,6 +10,15 @@ using System.Xml.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+string RequiredConfig(string key) =>
+    builder.Configuration[key]
+    ?? throw new InvalidOperationException($"This key {key} is missing. Add it to user-secrets locally or to Fly with a __ between words because fly is strange.");
+
+var googleClientId = RequiredConfig("Google:ClientId");
+var googleClientSecret = RequiredConfig("Google:ClientSecret");
+var googleRefreshToken = RequiredConfig("Google:RefreshToken");
+var apiKey = RequiredConfig("Api:Key");
+
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<FeedDbContext>(options => options.UseSqlite("DataSource=feed.db"));
 
@@ -30,9 +39,9 @@ async Task<GoogleTokenResponse> GetGoogleAccessTokenAsync()
 {
     var form = new FormUrlEncodedContent(new Dictionary<string, string>
     {
-        ["client_id"] = builder.Configuration["Google:ClientId"],
-        ["client_secret"] = builder.Configuration["Google:ClientSecret"],
-        ["refresh_token"] = builder.Configuration["Google:RefreshToken"],
+        ["client_id"] = googleClientId,
+        ["client_secret"] = googleClientSecret,
+        ["refresh_token"] = googleRefreshToken,
         ["grant_type"] = "refresh_token",
     });
 
