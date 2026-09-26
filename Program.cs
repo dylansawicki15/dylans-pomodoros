@@ -18,11 +18,18 @@ var googleClientId = RequiredConfig("Google:ClientId");
 var googleClientSecret = RequiredConfig("Google:ClientSecret");
 var googleRefreshToken = RequiredConfig("Google:RefreshToken");
 var apiKey = RequiredConfig("Api:Key");
+var feedConnectionString = RequiredConfig("ConnectionStrings:Feed");
 
 builder.Services.AddOpenApi();
-builder.Services.AddDbContext<FeedDbContext>(options => options.UseSqlite("DataSource=feed.db"));
+builder.Services.AddDbContext<FeedDbContext>(options => options.UseSqlite(feedConnectionString));
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var service = scope.ServiceProvider.GetRequiredService<FeedDbContext>();
+    service.Database.Migrate();
+}
 
 const string JSON_DESERIALIZER_ERROR_MSG = "Listen brother. Whatever you just received from google isn't polished enough to be parsed by the JsonSerializer function. I think it's time for some maintenance brother.";
 
