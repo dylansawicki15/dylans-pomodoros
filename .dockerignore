@@ -1,0 +1,7 @@
+bin/
+obj/
+learning/
+feed.db*
+.git
+.claude
+tools/
