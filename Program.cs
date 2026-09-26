@@ -237,10 +237,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+
+var publicPaths = new[] {"/health"};
 app.Use(async (context, next) =>
 {
     var providedKey = context.Request.Headers["X-API-Key"];
-    if (providedKey != apiKey)
+    if (providedKey != apiKey && !publicPaths.Contains(context.Request.Path))
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         return;
