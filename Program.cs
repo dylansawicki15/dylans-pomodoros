@@ -245,7 +245,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 
-var publicPaths = new[] {"/health"};
+var publicPaths = new[] {"/health", "/", "/privacy"};
 app.Use(async (context, next) =>
 {
     var providedKey = context.Request.Headers["X-API-Key"];
@@ -281,6 +281,16 @@ app.MapGet("/health", () =>
 {
     return "it is indeed a matter of fact that we are unoffline";
 });
+
+// Google requires a home page and privacy policy URL before the OAuth app can leave Testing.
+app.MapGet("/", () => Results.Content(
+    "<h1>Personal Life API</h1><p>A personal API that combines my own calendar and pomodoro data into one feed. Used only by me.</p>",
+    "text/html"));
+
+app.MapGet("/privacy", () => Results.Content(
+    "<h1>Personal Life API</h1><p>This app reads my pomodoros and my google calendar events, read-only. They are kept in a database on this server, and they are not shared with anyone.</p>",
+    "text/html"));
+
 
 app.Run();
 
