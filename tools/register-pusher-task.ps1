@@ -2,8 +2,14 @@
 # No secret in here: push-pomodoros.ps1 reads the key from the User env var PERSONAL_LIFE_API_KEY.
 $pusher = Join-Path $PSScriptRoot 'push-pomodoros.ps1'
 
-$action = New-ScheduledTaskAction -Execute "$env:LOCALAPPDATA\Microsoft\WindowsApps\pwsh.exe" `
-    -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -File `"$pusher`" -ApiUrl https://personal-life-api.fly.dev"
+$pwsh = "$env:LOCALAPPDATA\Microsoft\WindowsApps\pwsh.exe"
+
+# pwsh is a console program, so Windows opens its window before pwsh can hide it.
+# conhost --headless gives pwsh a console with no window at all.
+# Cost: conhost always exits 0, so Last Run Result no longer shows failures.
+# The alarm is the yapa timestamp on GET /status.
+$action = New-ScheduledTaskAction -Execute "conhost" `
+    -Argument "--headless `"$pwsh`" -NoProfile -NonInteractive -File `"$pusher`" -ApiUrl https://personal-life-api.fly.dev"
 
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 240)
 
