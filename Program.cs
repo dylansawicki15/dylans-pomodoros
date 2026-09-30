@@ -8,6 +8,8 @@ using System.Security.Principal;
 using System.Text.Json;
 using System.Xml.Serialization;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -271,10 +273,11 @@ app.UseHttpsRedirection();
 
 
 var publicPaths = new[] {"/health", "/", "/privacy"};
+var apiKeyBytes = Encoding.UTF8.GetBytes(apiKey);
 app.Use(async (context, next) =>
 {
-    var providedKey = context.Request.Headers["X-API-Key"];
-    if (providedKey != apiKey && !publicPaths.Contains(context.Request.Path))
+    var providedKey = Encoding.UTF8.GetBytes(context.Request.Headers["X-API-Key"].ToString());
+    if (!CryptographicOperations.FixedTimeEquals(providedKey, apiKeyBytes) && !publicPaths.Contains(context.Request.Path))
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         return;
