@@ -43,6 +43,19 @@ namespace PersonalLifeApi.Migrations
 
                     b.ToTable("FeedItems");
                 });
+
+            modelBuilder.Entity("SourceStatus", b =>
+                {
+                    b.Property<string>("Source")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("TimeStampUpdated")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Source");
+
+                    b.ToTable("SourceStatuses");
+                });
 #pragma warning restore 612, 618
         }
     }

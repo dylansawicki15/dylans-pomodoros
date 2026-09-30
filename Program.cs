@@ -7,6 +7,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Text.Json;
 using System.Xml.Serialization;
+using System.ComponentModel.DataAnnotations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -99,6 +100,18 @@ async Task<GoogleEventsResponse> GetCalendarEventsRawAsync()
     }
     return result;
 }
+async Task MarkSourceSucceededAsync(FeedDbContext db, string source)
+{
+    var sourceStatus = await db.SourceStatuses.FindAsync(source); 
+
+    if (sourceStatus == null)
+    {
+        sourceStatus = new SourceStatus { Source = source }; 
+        db.SourceStatuses.Add(sourceStatus);
+    }
+
+    sourceStatus.TimeStampUpdated = DateTimeOffset.UtcNow;
+}
 
 app.MapGet("/calendar/raw", async () =>
 {
@@ -159,6 +172,7 @@ app.MapPost("/sync", async (FeedDbContext db) =>
         }
     }
 
+    await MarkSourceSucceededAsync(db, "google");
     await db.SaveChangesAsync();
 
     return Results.Ok(new
@@ -221,6 +235,7 @@ app.MapPost("/pomodoros", async (List<PomodoroPush> pomodoros, FeedDbContext db)
 
     }
 
+    await MarkSourceSucceededAsync(db, "yapa");
     await db.SaveChangesAsync();
 
     return Results.Ok(new { received = pomodoros.Count, updated, added });
@@ -236,6 +251,16 @@ app.MapGet("/feed", async (FeedDbContext db) =>
     return Results.Ok(items);
 })
 .WithName("GetFeed");
+
+app.MapGet("/status", async (FeedDbContext db) =>
+{
+    var items = (await db.SourceStatuses.ToListAsync()) 
+    .OrderBy(x => x.TimeStampUpdated)
+    .Select(x => new SourceStatusResponse(x.Source, x.TimeStampUpdated));
+
+    return Results.Ok(items);
+})
+.WithName("GetStatus");
 
 if (app.Environment.IsDevelopment())
 {
@@ -321,6 +346,11 @@ record FeedItemResponse(
     DateTimeOffset Ends 
 );
 
+record SourceStatusResponse(
+    string Source,
+    DateTimeOffset TimeStampUpdated
+);
+
 record PomodoroPush(
     int Id,
     string? ProfileName,
@@ -338,8 +368,16 @@ class FeedItem
     public DateTimeOffset Ends { get; set; }
 }
 
+class SourceStatus
+{
+    [Key]
+    public required string Source { get; set; }
+    public DateTimeOffset TimeStampUpdated { get; set; }
+}
+
 class FeedDbContext : DbContext
 {
     public FeedDbContext(DbContextOptions<FeedDbContext> options) : base(options) { }
     public DbSet<FeedItem> FeedItems { get; set; } = null!;
+    public DbSet<SourceStatus> SourceStatuses { get; set; } = null!;
 }
