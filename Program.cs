@@ -1,16 +1,7 @@
-﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration.UserSecrets;
-using SQLitePCL;
-using System.Net.Http.Headers;
-using System.Security.Cryptography.X509Certificates;
-using System.Security.Principal;
-using System.Text.Json;
-using System.Xml.Serialization;
+﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text;
-using System.Linq.Expressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,9 +9,6 @@ string RequiredConfig(string key) =>
     builder.Configuration[key]
     ?? throw new InvalidOperationException($"This key {key} is missing. Add it to user-secrets locally or to Fly with a __ between words because fly is strange.");
 
-var googleClientId = RequiredConfig("Google:ClientId");
-var googleClientSecret = RequiredConfig("Google:ClientSecret");
-var googleRefreshToken = RequiredConfig("Google:RefreshToken");
 var apiKey = RequiredConfig("Api:Key");
 var feedConnectionString = RequiredConfig("ConnectionStrings:Feed");
 
@@ -35,74 +23,6 @@ using (var scope = app.Services.CreateScope())
     service.Database.Migrate();
 }
 
-const string JSON_DESERIALIZER_ERROR_MSG = "Listen brother. Whatever you just received from google isn't polished enough to be parsed by the JsonSerializer function. I think it's time for some maintenance brother.";
-
-using var googleClient = new HttpClient();
-
-var googleJsonOptions = new JsonSerializerOptions {
-    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-    PropertyNameCaseInsensitive = true,
-};
-
-var calendarJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-async Task<GoogleTokenResponse> GetGoogleAccessTokenAsync()
-{
-    var form = new FormUrlEncodedContent(new Dictionary<string, string>
-    {
-        ["client_id"] = googleClientId,
-        ["client_secret"] = googleClientSecret,
-        ["refresh_token"] = googleRefreshToken,
-        ["grant_type"] = "refresh_token",
-    });
-
-    var response = await googleClient.PostAsync("https://oauth2.googleapis.com/token", form);
-
-    if (!response.IsSuccessStatusCode)
-    {
-        throw new HttpRequestException($"Google token exchange returned {(int)response.StatusCode}");
-    }
-
-    var rawJson = await response.Content.ReadAsStringAsync();
-
-    var result = JsonSerializer.Deserialize<GoogleTokenResponse>(rawJson, googleJsonOptions);
-    if (result == null)
-    {
-        throw new HttpRequestException(JSON_DESERIALIZER_ERROR_MSG);
-    }
-    return result;
-}
-
-async Task<GoogleEventsResponse> GetCalendarEventsRawAsync()
-{
-    var token = await GetGoogleAccessTokenAsync();
-
-    var url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
-        + "?timeMin=" + DateTime.UtcNow.ToString("o")
-        + "&timeMax=" + DateTime.UtcNow.AddMonths(1).ToString("o")
-        + "&maxResults=300"
-        + "&singleEvents=true"
-        + "&orderBy=startTime";
-
-    var request = new HttpRequestMessage(HttpMethod.Get, url);
-    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
-
-    var googleData = await googleClient.SendAsync(request);
-    if (!googleData.IsSuccessStatusCode)
-    {
-        // this is my project, and this is my error message
-        throw new HttpRequestException($"Google said you done messed something up my brother, something with this number {(int)googleData.StatusCode}");
-    }
-
-    var googleRawJson = await googleData.Content.ReadAsStringAsync();
-
-    var result = JsonSerializer.Deserialize<GoogleEventsResponse>(googleRawJson, calendarJsonOptions);
-    if (result == null)
-    {
-        throw new HttpRequestException(JSON_DESERIALIZER_ERROR_MSG);
-    }
-    return result;
-}
 async Task MarkSourceSucceededAsync(FeedDbContext db, string source)
 {
     var sourceStatus = await db.SourceStatuses.FindAsync(source); 
@@ -115,79 +35,6 @@ async Task MarkSourceSucceededAsync(FeedDbContext db, string source)
 
     sourceStatus.TimeStampUpdated = DateTimeOffset.UtcNow;
 }
-
-app.MapGet("/calendar/raw", async () =>
-{
-    try
-    {
-        var events = await GetCalendarEventsRawAsync();
-        return Results.Ok(events);
-    }
-    catch (HttpRequestException ex)
-    {
-        return Results.Problem(detail: ex.Message, statusCode: 502);
-    }
-})
-.WithName("GetCalendarRaw");
-
-app.MapPost("/sync", async (FeedDbContext db) =>
-{
-    var events = await GetCalendarEventsRawAsync();
-    var skipped = 0;
-    var added = 0;
-    var updated = 0;
-
-    // Ask the database once for everything this connector has already stored,
-    // keyed so the loop can look an event up without another round trip.
-    var existingBySourceId = await db.FeedItems
-        .Where(f => f.Source == "google")
-        .ToDictionaryAsync(f => f.SourceId);
-
-    foreach (var e in events.Items)
-    {
-        if (e.Start.DateTime == null || e.End.DateTime == null)
-        {
-            skipped++;
-            continue;
-        }
-
-        if (existingBySourceId.TryGetValue(e.Id, out var existing))
-        {
-            existing.Title = e.Summary;
-            existing.Starts = DateTimeOffset.Parse(e.Start.DateTime);
-            existing.Ends = DateTimeOffset.Parse(e.End.DateTime);
-
-            updated++;
-        }
-        else
-        {
-            var item = new FeedItem
-            {
-                Source = "google",
-                SourceId = e.Id,
-                Title = e.Summary,
-                Starts = DateTimeOffset.Parse(e.Start.DateTime),
-                Ends = DateTimeOffset.Parse(e.End.DateTime),
-            };
-
-            db.FeedItems.Add(item);
-            added++;
-        }
-    }
-
-    await MarkSourceSucceededAsync(db, "google");
-    await db.SaveChangesAsync();
-
-    return Results.Ok(new
-    {
-        fetched = events.Items.Count,
-        skipped,
-        updated,
-        added,
-        stored = await db.FeedItems.CountAsync()
-    });
-})
-.WithName("SyncCalendar");
 
 app.MapPost("/pomodoros", async (List<PomodoroPush> pomodoros, FeedDbContext db) =>
 {
@@ -313,13 +160,12 @@ app.MapGet("/health", () =>
 
 // Google requires a home page and privacy policy URL before the OAuth app can leave Testing.
 app.MapGet("/", () => Results.Content(
-    "<h1>Personal Life API</h1><p>A personal API that combines my own calendar and pomodoro data into one feed. Used only by me.</p>",
+    "<h1>Personal Life API</h1><p>We show stats of my pomodoros</p>",
     "text/html"));
 
 app.MapGet("/privacy", () => Results.Content(
-    "<h1>Personal Life API</h1><p>This app reads my pomodoros and my google calendar events, read-only. They are kept in a database on this server, and they are not shared with anyone.</p>",
+    "<h1>Personal Life API</h1><p>It reads my own pomodoro data from my computer and the YAPA program which i use to track it. The data is kept on this server on the database. I am the only one that sees the data.</p>",
     "text/html"));
-
 
 app.Run();
 
@@ -327,19 +173,6 @@ record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
-
-record GoogleTokenResponse(string AccessToken, double ExpiresIn);
-
-record GoogleEventTime(string? DateTime, string? TimeZone);
-
-record GoogleCalendarEvent(
-    string Id,
-    string? Summary,
-    GoogleEventTime Start,
-    GoogleEventTime End
-);
-
-record GoogleEventsResponse(List<GoogleCalendarEvent> Items);
 
 // What GET /feed promises to clients. Deliberately not FeedItem: the table's shape can change without changing the API.
 record FeedItemResponse(

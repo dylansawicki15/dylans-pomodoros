@@ -16,9 +16,6 @@ public class TestApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("Api:Key", ApiKey);
-        builder.UseSetting("Google:ClientId", "fake");
-        builder.UseSetting("Google:ClientSecret", "fake");
-        builder.UseSetting("Google:RefreshToken", "fake");
         builder.UseSetting("ConnectionStrings:Feed", $"DataSource={_dbPath}");
     }
 
