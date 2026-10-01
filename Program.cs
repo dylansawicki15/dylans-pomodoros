@@ -10,6 +10,7 @@ using System.Xml.Serialization;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text;
+using System.Linq.Expressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -383,4 +384,11 @@ class FeedDbContext : DbContext
     public FeedDbContext(DbContextOptions<FeedDbContext> options) : base(options) { }
     public DbSet<FeedItem> FeedItems { get; set; } = null!;
     public DbSet<SourceStatus> SourceStatuses { get; set; } = null!;
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        // One row per item per source, enforced by the database, so a buggy upsert fails loudly instead of duplicating.
+        modelBuilder.Entity<FeedItem>()
+            .HasIndex(f => new { f.Source, f.SourceId }).IsUnique();
+    }
 }

@@ -17,4 +17,9 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
   </ItemGroup>
 
+  <!-- Tests reach FeedDbContext directly to prove rules the endpoints can no longer break. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="PersonalLifeApi.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -41,6 +41,9 @@ namespace PersonalLifeApi.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Source", "SourceId")
+                        .IsUnique();
+
                     b.ToTable("FeedItems");
                 });
 
