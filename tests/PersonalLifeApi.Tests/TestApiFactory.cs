@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.Sqlite;
 
 namespace PersonalLifeApi.Tests;
 
@@ -19,5 +20,14 @@ public class TestApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Google:ClientSecret", "fake");
         builder.UseSetting("Google:RefreshToken", "fake");
         builder.UseSetting("ConnectionStrings:Feed", $"DataSource={_dbPath}");
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        // SQLite keeps closed connections pooled, and Windows refuses to delete a file that is still open.
+        SqliteConnection.ClearAllPools();
+        File.Delete(_dbPath);
     }
 }
