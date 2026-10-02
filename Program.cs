@@ -135,11 +135,25 @@ app.MapGet("/stats/pomodoros", async (FeedDbContext db, TimeProvider clock) =>
         .Where(x => TimeZoneInfo.ConvertTime(x.Starts, statsTimeZone).Date >= firstDay)
         .Sum(x => (x.Ends - x.Starts).TotalMinutes);
 
+    // Your pace: average minutes a day over the last 7 days, today included.
+    // Divide by 7, not by the days you worked, so a day off counts as 0.
+    // 7.0, not 7: in C# a whole number divided by a whole number drops the remainder (25 / 7 is 3, not 3.57).
+    var averagePerDay = MinutesSince(today.AddDays(-6)) / 7.0;
+
+    // What that pace adds up to from today until `until`, counting real calendar days (a 31-day month, leap years).
+    int ProjectedUntil(DateTime until) => (int)(averagePerDay * (until - today).TotalDays);
+
     return Results.Ok(new PomodoroStatsResponse(
         MinutesSince(today),
         MinutesSince(weekStart),
         MinutesSince(monthStart),
-        MinutesSince(yearStart)));
+        MinutesSince(yearStart),
+        new PomodoroProjection(
+            ProjectedUntil(today.AddMonths(1)),
+            ProjectedUntil(today.AddMonths(3)),
+            ProjectedUntil(today.AddMonths(6)),
+            ProjectedUntil(today.AddYears(1)),
+            ProjectedUntil(today.AddYears(10)))));
 })
 .WithName("GetPomodoroStats");
 
@@ -223,7 +237,16 @@ record PomodoroStatsResponse(
     int TodayMinutes,
     int WeekMinutes,
     int MonthMinutes,
-    int YearMinutes
+    int YearMinutes,
+    PomodoroProjection Projection
+);
+
+record PomodoroProjection(
+    int OneMonthMinutes,
+    int ThreeMonthsMinutes,
+    int SixMonthsMinutes,
+    int OneYearMinutes,
+    int TenYearsMinutes 
 );
 
 record PomodoroPush(
