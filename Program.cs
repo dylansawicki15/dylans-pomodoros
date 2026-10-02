@@ -14,6 +14,8 @@ var feedConnectionString = RequiredConfig("ConnectionStrings:Feed");
 
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<FeedDbContext>(options => options.UseSqlite(feedConnectionString));
+// The clock is a service so tests can swap in a fixed "now".
+builder.Services.AddSingleton(TimeProvider.System);
 
 var app = builder.Build();
 
@@ -112,6 +114,25 @@ app.MapGet("/status", async (FeedDbContext db) =>
 })
 .WithName("GetStatus");
 
+// Days start at your midnight, not the server's (Fly runs on UTC). A named zone, not "+02:00", so the October clock change is handled.
+var statsTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam");
+
+app.MapGet("/stats/pomodoros", async (FeedDbContext db, TimeProvider clock) =>
+{
+    var today = TimeZoneInfo.ConvertTime(clock.GetUtcNow(), statsTimeZone).Date;
+
+    var pomodoros = await db.FeedItems
+        .Where(x => x.Source == "yapa")
+        .ToListAsync();
+
+    var todayMinutes = pomodoros
+        .Where(x => TimeZoneInfo.ConvertTime(x.Starts, statsTimeZone).Date == today)
+        .Sum(x => (x.Ends - x.Starts).TotalMinutes);
+
+    return Results.Ok(new PomodoroStatsResponse((int)todayMinutes));
+})
+.WithName("GetPomodoroStats");
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -186,6 +207,10 @@ record FeedItemResponse(
 record SourceStatusResponse(
     string Source,
     DateTimeOffset TimeStampUpdated
+);
+
+record PomodoroStatsResponse(
+    int TodayMinutes
 );
 
 record PomodoroPush(
