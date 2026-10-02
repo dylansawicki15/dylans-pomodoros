@@ -120,16 +120,26 @@ var statsTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam");
 app.MapGet("/stats/pomodoros", async (FeedDbContext db, TimeProvider clock) =>
 {
     var today = TimeZoneInfo.ConvertTime(clock.GetUtcNow(), statsTimeZone).Date;
-
+    // Weeks start on Sunday (your call). DayOfWeek counts Sunday as 0, so a Friday (5) steps back 5 days.
+    var weekStart = today.AddDays(-(int)today.DayOfWeek);
+    var monthStart = new DateTime(today.Year, today.Month, 1);
+    var yearStart = new DateTime(today.Year, 1, 1);
+    
     var pomodoros = await db.FeedItems
         .Where(x => x.Source == "yapa")
         .ToListAsync();
 
-    var todayMinutes = pomodoros
-        .Where(x => TimeZoneInfo.ConvertTime(x.Starts, statsTimeZone).Date == today)
+    // Minutes from every pomodoro that started on or after firstDay, counted in Amsterdam days.
+    int MinutesSince(DateTime firstDay) => (int)pomodoros
+        // got rid of the clock time so we dont have to worry about the timezones messing up on what day the pomodoro started, we cant catch this error because the laptop is on amsterdam time
+        .Where(x => TimeZoneInfo.ConvertTime(x.Starts, statsTimeZone).Date >= firstDay)
         .Sum(x => (x.Ends - x.Starts).TotalMinutes);
 
-    return Results.Ok(new PomodoroStatsResponse((int)todayMinutes));
+    return Results.Ok(new PomodoroStatsResponse(
+        MinutesSince(today),
+        MinutesSince(weekStart),
+        MinutesSince(monthStart),
+        MinutesSince(yearStart)));
 })
 .WithName("GetPomodoroStats");
 
@@ -210,7 +220,10 @@ record SourceStatusResponse(
 );
 
 record PomodoroStatsResponse(
-    int TodayMinutes
+    int TodayMinutes,
+    int WeekMinutes,
+    int MonthMinutes,
+    int YearMinutes
 );
 
 record PomodoroPush(
