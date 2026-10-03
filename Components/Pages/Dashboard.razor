@@ -21,36 +21,54 @@
 <MudThemeProvider />
 <MudPopoverProvider />
 
-@* MudText is MudBlazor's text. Typo picks the style, the way you'd pick h1 or p. Material's h1 is huge, so h4 is the dashboard-sized heading. *@
-<MudText Typo="Typo.h4">Welcome to my very fun and useful dashboard</MudText>
+@* MudContainer is the page's frame, like Bootstrap's .container: it caps the width at 1280 pixels (MaxWidth.Large), centres the page
+   and pads its sides, which MudGrid needs (without it, the grid's right edge ran off the window). py-8: 32 pixels above and below. *@
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+    @* MudText is MudBlazor's text. Typo picks the style, the way you'd pick h1 or p. Material's h1 is huge, so h4 is the dashboard-sized heading. *@
+    <MudText Typo="Typo.h4">Welcome to my very fun and useful dashboard</MudText>
 
-<MudText>Signed in as @name (@email) <MudLink Href="/logout">Sign out</MudLink></MudText>
+    <MudText Class="mb-6">Signed in as @name (@email) <MudLink Href="/logout">Sign out</MudLink></MudText>
 
-@* Your Total component, once per period. Label is text, so "Today" is just the word.
-   Minutes is a number, so what's in its quotes is C#: the field's name, no @ needed. *@
-<Total Label="Today" Minutes="todayMinutes" />
-<Total Label="This week" Minutes="weekMinutes" />
-<Total Label="This month" Minutes="monthMinutes" />
-<Total Label="This year" Minutes="yearMinutes" />
+    @* Your Total component, once per period. Label is text, so "Today" is just the word.
+       Minutes is a number, so what's in its quotes is C#: the field's name, no @ needed.
+       MudGrid lays the cards out in rows 12 columns wide, like Bootstrap's grid. Each MudItem says how many of the 12 its card takes.
+       xs and md are window widths: xs counts from a phone up, md from 960 pixels up (a laptop). Below 960 a card takes its xs number, from 960 its md number. *@
+    <MudGrid>
+        <MudItem xs="12" md="6"><Total Label="Today" Minutes="todayMinutes" /></MudItem>
+        <MudItem xs="12" md="6"><Total Label="This week" Minutes="weekMinutes" /></MudItem>
+        <MudItem xs="12" md="6"><Total Label="This month" Minutes="monthMinutes" /></MudItem>
+        <MudItem xs="12" md="6"><Total Label="This year" Minutes="yearMinutes" /></MudItem>
+    </MudGrid>
 
-@* The pace line: your 7-day average on every day of the last year, so speeding up, holding steady or slipping shows at a glance.
-   Timeseries is MudBlazor's line chart for dated points: it spaces them by date and labels the bottom axis with dates. *@
-@if (paceSeries is not null)
-{
-    <MudText Typo="Typo.h5" Class="mt-6 mb-4">Your pace</MudText>
-    <MudChart T="double" ChartType="ChartType.Timeseries" ChartSeries="paceSeries" ChartOptions="paceOptions" Width="100%" Height="300px" />
-}
+    @* The pace line: your 7-day average on every day of the last year, so speeding up, holding steady or slipping shows at a glance.
+       Timeseries is MudBlazor's line chart for dated points: it spaces them by date and labels the bottom axis with dates. *@
+    @if (paceSeries is not null)
+    {
+        <MudText Typo="Typo.h5" Class="mt-6 mb-4">Your pace</MudText>
+        @* In the same flat card as your totals, so the page reads as one set.
+           MatchBoundsToSize: the chart draws at the card's real width. Without it, it keeps a fixed shape and 300px tall made it narrow, centred in the middle. *@
+        <MudCard Elevation="0" Outlined="true" Class="rounded-lg">
+            <MudCardContent>
+                <MudChart T="double" ChartType="ChartType.Timeseries" ChartSeries="paceSeries" ChartOptions="paceOptions" Width="100%" Height="300px" MatchBoundsToSize="true" />
+            </MudCardContent>
+        </MudCard>
+    }
 
-@* Keep this up: your average over the last 7 days, carried forward. PomodoroStatsService already did the maths; the page just shows it. *@
-@if (projection is not null)
-{
-    <MudText Typo="Typo.h5" Class="mt-6 mb-4">Keep this up and you'll add</MudText>
-    <Total Label="In 1 month" Minutes="projection.OneMonthMinutes" />
-    <Total Label="In 3 months" Minutes="projection.ThreeMonthsMinutes" />
-    <Total Label="In 6 months" Minutes="projection.SixMonthsMinutes" />
-    <Total Label="In 1 year" Minutes="projection.OneYearMinutes" />
-    <Total Label="In 10 years" Minutes="projection.TenYearsMinutes" />
-}
+    @* Keep this up: your average over the last 7 days, carried forward. PomodoroStatsService already did the maths; the page just shows it. *@
+    @if (projection is not null)
+    {
+        <MudText Typo="Typo.h5" Class="mt-6 mb-4">Keep this up and you'll add</MudText>
+
+        @* The same grid as your totals. Five cards don't make even rows, so the biggest number gets the whole last row (md="12"). *@
+        <MudGrid>
+            <MudItem xs="12" md="6"><Total Label="In 1 month" Minutes="projection.OneMonthMinutes" /></MudItem>
+            <MudItem xs="12" md="6"><Total Label="In 3 months" Minutes="projection.ThreeMonthsMinutes" /></MudItem>
+            <MudItem xs="12" md="6"><Total Label="In 6 months" Minutes="projection.SixMonthsMinutes" /></MudItem>
+            <MudItem xs="12" md="6"><Total Label="In 1 year" Minutes="projection.OneYearMinutes" /></MudItem>
+            <MudItem xs="12" md="12"><Total Label="In 10 years" Minutes="projection.TenYearsMinutes" /></MudItem>
+        </MudGrid>
+    }
+</MudContainer>
 
 @code {
     private string? name;
@@ -71,6 +89,7 @@
     {
         TimeLabelFormat = "d MMM",                  // the bottom axis reads "19 Sept", "21 Sept", ...
         TooltipTimeLabelFormat = "d MMM",           // ... and so does hovering the line
+        YAxisRequireZeroPoint = true,               // the left axis starts at 0, so a dip from 178 to 136 doesn't look like a crash
     };
 
     // Blazor calls this once, when the page is first built.

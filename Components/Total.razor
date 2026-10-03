@@ -2,11 +2,16 @@
 
 @* One total on the dashboard: a label and a time, in a MudBlazor card.
    Your own component, so the dashboard can write <Total Label="Today" Minutes="todayMinutes" /> four times instead of copying the card four times.
-   mb-4 is one of MudBlazor's spacing classes: a gap under each card so they don't touch. *@
-<MudCard Class="mb-4">
+   The page's MudGrid spaces the cards now, so the card needs no gap of its own.
+   Elevation="0" with Outlined: a thin border instead of a drop shadow, flat like the chart. rounded-lg rounds the corners more.
+   The label is an overline (small, spaced-out letters) in mud-text-secondary, MudBlazor's grey, so the number is what you see first. *@
+<MudCard Elevation="0" Outlined="true" Class="rounded-lg">
     <MudCardContent>
-        <MudText Typo="Typo.subtitle1">@Label</MudText>
-        <MudText Typo="Typo.h4">@Format(Minutes)</MudText>
+        <div class="d-flex align-center gap-2 mud-text-secondary">
+            <MudIcon Icon="@Icons.Material.Outlined.Timer" Size="Size.Small" />
+            <MudText Typo="Typo.overline">@Label</MudText>
+        </div>
+        <MudText Typo="Typo.h3" Color="Color.Primary">@Format(Minutes)</MudText>
     </MudCardContent>
 </MudCard>
 

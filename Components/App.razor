@@ -6,6 +6,8 @@
 <head>
     <meta charset="utf-8" />
     <title>Personal Life</title>
+    @* Without this a phone pretends to be a 980-pixel-wide desktop and shrinks the page to fit, so your xs="12" would never kick in there. *@
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     @* Blazor's script works out its own addresses (like /_blazor) from this. *@
     <base href="/" />
     @* MudBlazor's look: a stylesheet that ships inside the package. @Assets turns the file name into its real address,
