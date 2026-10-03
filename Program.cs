@@ -249,11 +249,11 @@ app.MapGet("/health", () =>
 
 // Google requires a home page and privacy policy URL before the OAuth app can leave Testing.
 app.MapGet("/", () => Results.Content(
-    "<h1>Personal Life API</h1><p>We show stats of my pomodoros</p>",
+    "<h1>Dylan's Pomodoros</h1><p>We show stats of my pomodoros</p>",
     "text/html"));
 
 app.MapGet("/privacy", () => Results.Content(
-    "<h1>Personal Life API</h1><p>It reads my own pomodoro data from my computer and the YAPA program which i use to track it. The data is kept on this server on the database. I am the only one that sees the data.</p>",
+    "<h1>Dylan's Pomodoros</h1><p>It reads my own pomodoro data from my computer and the YAPA program which i use to track it. The data is kept on this server on the database. I am the only one that sees the data.</p>",
     "text/html"));
 
 // Sends you to Google. Google sends you back to /signin-google with a one-time code, the app trades it

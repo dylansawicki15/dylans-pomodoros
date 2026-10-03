@@ -6,6 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>166e88bb-5d57-44a9-81f2-fd8222394350</UserSecretsId>
     <DefaultItemExcludes>$(DefaultItemExcludes);tests/**;</DefaultItemExcludes>
+    <!-- The SDK only adds Blazor's own script (_framework/blazor.web.js) when it can see .razor files. The Dockerfile restores
+         with nothing but this file copied in, so it saw none, and the live site shipped without the script: no live connection, so no chart.
+         Saying it here means restore no longer depends on which files have been copied yet. -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
   </PropertyGroup>
 
   <ItemGroup>
