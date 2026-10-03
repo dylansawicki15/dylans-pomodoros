@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using MudBlazor.Services;
 using PersonalLifeApi.Components;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
@@ -35,6 +36,8 @@ builder.Services.AddScoped<PomodoroStatsService>();
 // and keep a live connection open to pages that ask to be interactive.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+// MudBlazor's own helpers (its theme, popups, snackbars), registered the same way as PomodoroStatsService above.
+builder.Services.AddMudServices();
 // Sign-in: Google tells the app who you are once, then a cookie remembers it on every request after.
 // The cookie answers "who is this?"; Google is where to send someone who hasn't signed in yet.
 builder.Services.AddAuthentication(options =>
@@ -195,7 +198,7 @@ string[] publicPaths = ["/health", "/", "/privacy", "/signin-google", "/login", 
 // No key here either, because a browser can't keep one secret. The sign-in cookie guards these instead ([Authorize] on Dashboard.razor).
 // Prefixes are whole folders: anything whose address starts with one gets in.
 string[] browserPaths = ["/dashboard"];
-string[] browserPrefixes = ["/_framework", "/_blazor"];
+string[] browserPrefixes = ["/_framework", "/_blazor", "/_content"];
 
 var apiKeyBytes = Encoding.UTF8.GetBytes(apiKey);
 app.Use(async (context, next) =>

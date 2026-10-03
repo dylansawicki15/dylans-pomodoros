@@ -16,6 +16,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageReference Include="MudBlazor" Version="9.11.0" />
   </ItemGroup>
 
   <!-- Tests reach FeedDbContext directly to prove rules the endpoints can no longer break. -->

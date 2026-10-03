@@ -8,6 +8,9 @@
     <title>Personal Life</title>
     @* Blazor's script works out its own addresses (like /_blazor) from this. *@
     <base href="/" />
+    @* MudBlazor's look: a stylesheet that ships inside the package. @Assets turns the file name into its real address,
+       with a version stamp in it so the browser never keeps an old copy after an update. *@
+    <link href="@Assets["_content/MudBlazor/MudBlazor.min.css"]" rel="stylesheet" />
 </head>
 <body>
     <Router AppAssembly="typeof(Program).Assembly">
@@ -17,5 +20,7 @@
     </Router>
     @* Blazor's JavaScript: opens the live connection and applies the server's changes to the page. *@
     <script src="_framework/blazor.web.js"></script>
+    @* MudBlazor's behaviour (popups, click ripples): its script, also inside the package. *@
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 </body>
 </html>

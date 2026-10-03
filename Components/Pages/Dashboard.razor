@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
+@using MudBlazor
 @* The guard, like Angular's canActivate: only your Google account gets the page (the OnlyMe rule in Program.cs). Anyone not signed in is sent to Google. *@
 @attribute [Authorize(Policy = "OnlyMe")]
 @* Keeps a live connection open between this page and the server, so a click runs your C# without a reload. *@
@@ -12,15 +13,22 @@
 @* Same @inject, different service: this one knows who the sign-in cookie says you are. *@
 @inject AuthenticationStateProvider Auth
 
-<h1>Welcome to my very fun and useful dashboard</h1>
+@* MudBlazor's two helpers. Apps usually put them in a shared layout; this one has none, so they sit on the page.
+   Like every MudBlazor piece, they only work on a page with the live connection.
+   The theme provider writes MudBlazor's colours and fonts into the page; the popover provider is the layer dropdowns and tooltips appear on. *@
+<MudThemeProvider />
+<MudPopoverProvider />
 
-<p>Signed in as @name (@email) <a href="/logout">Sign out</a></p>
+@* MudText is MudBlazor's text. Typo picks the style, the way you'd pick h1 or p. Material's h1 is huge, so h4 is the dashboard-sized heading. *@
+<MudText Typo="Typo.h4">Welcome to my very fun and useful dashboard</MudText>
 
-@* @onclick is Angular's (click): the method runs on the server, then Blazor redraws whatever changed. *@
-<button @onclick="ShowToday">Today</button>
-<button @onclick="ShowWeek">This week</button>
+<MudText>Signed in as @name (@email) <MudLink Href="/logout">Sign out</MudLink></MudText>
 
-<p>@minutes minutes of pomodoros @period</p>
+@* Variant, Color and OnClick are the button's parameters, its @Input()s.
+   OnClick, not @onclick: @onclick is for plain HTML tags, OnClick is MudButton's own. Same result: your method runs on the server, then Blazor redraws. *@
+<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ShowToday">Today</MudButton>
+<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ShowWeek">This week</MudButton>
+<MudText>@minutes minutes of pomodoros @period</MudText>
 
 @code {
     private string? name;
