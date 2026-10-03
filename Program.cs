@@ -21,8 +21,10 @@ builder.Services.AddSingleton(TimeProvider.System);
 // Looked up here, while the app starts, so a server without time-zone data crashes at boot instead of on the first stats request.
 builder.Services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam"));
 builder.Services.AddScoped<PomodoroStatsService>();
-// Blazor: lets the app turn .razor components into HTML pages.
-builder.Services.AddRazorComponents();
+// Blazor: lets the app turn .razor components into HTML pages,
+// and keep a live connection open to pages that ask to be interactive.
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
 
 var app = builder.Build();
 
@@ -124,8 +126,13 @@ app.MapGet("/status", async (FeedDbContext db) =>
 app.MapGet("/stats/pomodoros", async (PomodoroStatsService stats) => Results.Ok(await stats.GetAsync()))
 .WithName("GetPomodoroStats");
 
+// Serves files the browser downloads as-is, like Blazor's own _framework/blazor.web.js.
+app.MapStaticAssets();
+
 // Every component with an @page line becomes a route, the same way MapGet makes one.
-app.MapRazorComponents<App>();
+// The second line adds the address the live connection talks to.
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
 
 if (app.Environment.IsDevelopment())
 {
@@ -137,18 +144,23 @@ app.UseHttpsRedirection();
 
 // A List, not an array: an array's size is fixed, and Development adds one more path below.
 var publicPaths = new List<string> {"/health", "/", "/privacy"};
+// Whole folders: anything whose address starts with one of these gets in.
+var publicPrefixes = new List<string>();
 
 // The dashboard has no lock of its own until section 11, so it only opens on your laptop.
 if (app.Environment.IsDevelopment())
 {
     publicPaths.Add("/dashboard");
+    publicPrefixes.AddRange(["/_framework", "/_blazor"]);
 }
 
 var apiKeyBytes = Encoding.UTF8.GetBytes(apiKey);
 app.Use(async (context, next) =>
 {
     var providedKey = Encoding.UTF8.GetBytes(context.Request.Headers["X-API-Key"].ToString());
-    if (!CryptographicOperations.FixedTimeEquals(providedKey, apiKeyBytes) && !publicPaths.Contains(context.Request.Path))
+    var isPublic = publicPaths.Contains(context.Request.Path)
+        || publicPrefixes.Any(prefix => context.Request.Path.StartsWithSegments(prefix));
+    if (!CryptographicOperations.FixedTimeEquals(providedKey, apiKeyBytes) && !isPublic)
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         return;

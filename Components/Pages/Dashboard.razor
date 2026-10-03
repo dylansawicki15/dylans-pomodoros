@@ -1,17 +1,44 @@
 @page "/dashboard"
+@using Microsoft.AspNetCore.Components.Web
+@* Keeps a live connection open between this page and the server, so a click runs your C# without a reload. *@
+@rendermode RenderMode.InteractiveServer
 @* Gets the stats service from the app's services, the same way PomodoroStatsService's constructor gets FeedDbContext. *@
 @inject PomodoroStatsService Stats
 
 <h1>Welcome to my very fun and useful dashboard</h1>
 
-<p>@todayMinutes minutes of pomodoros today</p>
+@* @onclick is Angular's (click): the method runs on the server, then Blazor redraws whatever changed. *@
+<button @onclick="ShowToday">Today</button>
+<button @onclick="ShowWeek">This week</button>
+
+<p>@minutes minutes of pomodoros @period</p>
 
 @code {
     private int todayMinutes;
+    private int weekMinutes;
+
+    // What the page shows right now. The buttons change these two.
+    private int minutes;
+    private string period = "today";
 
     // Blazor calls this once, when the page is first built.
     protected override async Task OnInitializedAsync()
     {
-        todayMinutes = (await Stats.GetAsync()).TodayMinutes;
+        var stats = await Stats.GetAsync();
+        todayMinutes = stats.TodayMinutes;
+        weekMinutes = stats.WeekMinutes;
+        ShowToday();
+    }
+
+    private void ShowToday()
+    {
+        minutes = todayMinutes;
+        period = "today";
+    }
+
+    private void ShowWeek()
+    {
+        minutes = weekMinutes;
+        period = "week";
     }
 }

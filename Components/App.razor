@@ -6,6 +6,8 @@
 <head>
     <meta charset="utf-8" />
     <title>Personal Life</title>
+    @* Blazor's script works out its own addresses (like /_blazor) from this. *@
+    <base href="/" />
 </head>
 <body>
     <Router AppAssembly="typeof(Program).Assembly">
@@ -13,5 +15,7 @@
             <RouteView RouteData="routeData" />
         </Found>
     </Router>
+    @* Blazor's JavaScript: opens the live connection and applies the server's changes to the page. *@
+    <script src="_framework/blazor.web.js"></script>
 </body>
 </html>
