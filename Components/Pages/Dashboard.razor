@@ -31,6 +31,17 @@
 <Total Label="This month" Minutes="monthMinutes" />
 <Total Label="This year" Minutes="yearMinutes" />
 
+@* Keep this up: your average over the last 7 days, carried forward. PomodoroStatsService already did the maths; the page just shows it. *@
+@if (projection is not null)
+{
+    <MudText Typo="Typo.h5" Class="mt-6 mb-4">Keep this up and you'll add</MudText>
+    <Total Label="In 1 month" Minutes="projection.OneMonthMinutes" />
+    <Total Label="In 3 months" Minutes="projection.ThreeMonthsMinutes" />
+    <Total Label="In 6 months" Minutes="projection.SixMonthsMinutes" />
+    <Total Label="In 1 year" Minutes="projection.OneYearMinutes" />
+    <Total Label="In 10 years" Minutes="projection.TenYearsMinutes" />
+}
+
 @code {
     private string? name;
     private string? email;
@@ -39,6 +50,8 @@
     private int weekMinutes;
     private int monthMinutes;
     private int yearMinutes;
+    // The ? means "may be null": it stays empty until the stats have loaded.
+    private PomodoroProjection? projection;
 
     // Blazor calls this once, when the page is first built.
     protected override async Task OnInitializedAsync()
@@ -52,5 +65,7 @@
         weekMinutes = stats.WeekMinutes;
         monthMinutes = stats.MonthMinutes;
         yearMinutes = stats.YearMinutes;
+
+        projection = stats.Projection;
     }
 }
