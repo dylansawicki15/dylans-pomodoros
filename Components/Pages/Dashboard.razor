@@ -1,9 +1,11 @@
 @page "/dashboard"
+@using System.Runtime.InteropServices
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 @using MudBlazor
+@using MudBlazor.Charts
 @* The guard, like Angular's canActivate: only your Google account gets the page (the OnlyMe rule in Program.cs). Anyone not signed in is sent to Google. *@
 @attribute [Authorize(Policy = "OnlyMe")]
 @* Keeps a live connection open between this page and the server, so a click runs your C# without a reload. *@
@@ -31,6 +33,14 @@
 <Total Label="This month" Minutes="monthMinutes" />
 <Total Label="This year" Minutes="yearMinutes" />
 
+@* The pace line: your 7-day average on every day of the last year, so speeding up, holding steady or slipping shows at a glance.
+   Timeseries is MudBlazor's line chart for dated points: it spaces them by date and labels the bottom axis with dates. *@
+@if (paceSeries is not null)
+{
+    <MudText Typo="Typo.h5" Class="mt-6 mb-4">Your pace</MudText>
+    <MudChart T="double" ChartType="ChartType.Timeseries" ChartSeries="paceSeries" ChartOptions="paceOptions" Width="100%" Height="300px" />
+}
+
 @* Keep this up: your average over the last 7 days, carried forward. PomodoroStatsService already did the maths; the page just shows it. *@
 @if (projection is not null)
 {
@@ -52,6 +62,16 @@
     private int yearMinutes;
     // The ? means "may be null": it stays empty until the stats have loaded.
     private PomodoroProjection? projection;
+    // The chart's lines. You have one, the pace line. Like projection, it stays null until the stats have loaded.
+    private List<ChartSeries<double>>? paceSeries;
+
+    // How the chart draws. Its defaults are for points minutes apart ("HH:mm" labels), so these show days.
+    // The label spacing depends on how long your history is, so OnInitializedAsync sets it.
+    private readonly TimeSeriesChartOptions paceOptions = new()
+    {
+        TimeLabelFormat = "d MMM",                  // the bottom axis reads "19 Sept", "21 Sept", ...
+        TooltipTimeLabelFormat = "d MMM",           // ... and so does hovering the line
+    };
 
     // Blazor calls this once, when the page is first built.
     protected override async Task OnInitializedAsync()
@@ -67,5 +87,30 @@
         yearMinutes = stats.YearMinutes;
 
         projection = stats.Projection;
+
+        // The pace line from your first pomodoro day on. Before that it's months of zeros that squeeze your real line into a corner.
+        // SkipWhile drops points from the front while its test is true, then keeps everything after, so a day off once you've started stays on the line.
+        var paceSinceStart = stats.PaceLine
+            // TODO(you): the test that's true for every point before your first pomodoro day.
+            .SkipWhile(p => p.MinutesPerDay == 0)
+            .ToList();
+
+        // About 6 date labels along the bottom, however long your history is. Each label is the first date plus n steps,
+        // so a fixed 30-day step drifted off the months ("Jul" twice).
+        paceOptions.TimeLabelSpacing = TimeSpan.FromDays(Math.Max(1, paceSinceStart.Count / 6));
+
+        // The chart doesn't know your DayPace record. It wants TimeValue points: a DateTime and a number. So each DayPace gets translated.
+        // [ ... ] makes a list, like a JS array literal.
+        paceSeries =
+        [
+            new ChartSeries<double>
+            {
+                Name = "7-day average",
+                Data = paceSinceStart
+                    .Select(p => new TimeValue<double>(p.Day.ToDateTime(TimeOnly.MinValue), p.MinutesPerDay))
+                    .ToArray(),
+                TooltipYValueFormat = "0",   // whole minutes when you hover: "11", not "10.714285714"
+            },
+        ];
     }
 }
