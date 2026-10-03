@@ -9,6 +9,7 @@ namespace PersonalLifeApi.Tests;
 public class TestApiFactory : WebApplicationFactory<Program>
 {
     public const string ApiKey = "test-key";
+    public const string AllowedEmail = "me@example.com";
 
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"personal-life-api-test-{Guid.NewGuid()}.db");
 
@@ -20,6 +21,7 @@ public class TestApiFactory : WebApplicationFactory<Program>
         // this is a professional project, clearly
         builder.UseSetting("Google:ClientId", "agoobadoobeedoo");
         builder.UseSetting("Google:ClientSecret", "laboobeeboobeeboo");
+        builder.UseSetting("Auth:AllowedEmail", AllowedEmail);
     }
 
     protected override void Dispose(bool disposing)

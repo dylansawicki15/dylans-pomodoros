@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using PersonalLifeApi.Components;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -17,6 +18,8 @@ var apiKey = RequiredConfig("Api:Key");
 var feedConnectionString = RequiredConfig("ConnectionStrings:Feed");
 var googleClientId = RequiredConfig("Google:ClientId");
 var googleClientSecret = RequiredConfig("Google:ClientSecret");
+// The one Google account allowed into the dashboard.
+var allowedEmail = RequiredConfig("Auth:AllowedEmail");
 
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<FeedDbContext>(options => options.UseSqlite(feedConnectionString));
@@ -45,7 +48,11 @@ builder.Services.AddAuthentication(options =>
         options.ClientSecret = googleClientSecret;
     });
 // "Are you allowed?" The rules [Authorize] checks against. With no rule named, the rule is: be signed in.
-builder.Services.AddAuthorization();
+// "OnlyMe" is a named rule: the email Google vouched for must be yours. [Authorize(Policy = "OnlyMe")] asks for it.
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("OnlyMe", policy => policy.RequireClaim(ClaimTypes.Email, allowedEmail));
+});
 
 var app = builder.Build();
 
