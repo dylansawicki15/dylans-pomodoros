@@ -44,6 +44,8 @@ builder.Services.AddAuthentication(options =>
         options.ClientId = googleClientId;
         options.ClientSecret = googleClientSecret;
     });
+// "Are you allowed?" The rules [Authorize] checks against. With no rule named, the rule is: be signed in.
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -161,25 +163,22 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 
-// A List, not an array: an array's size is fixed, and Development adds one more path below.
-var publicPaths = new List<string> {"/health", "/", "/privacy", "/signin-google", "/login", "/logout"};
-// Whole folders: anything whose address starts with one of these gets in.
-var publicPrefixes = new List<string>();
+// No key needed: pages anyone may see, and the sign-in round trip.
+string[] publicPaths = ["/health", "/", "/privacy", "/signin-google", "/login", "/logout"];
 
-// The dashboard has no lock of its own until section 11, so it only opens on your laptop.
-if (app.Environment.IsDevelopment())
-{
-    publicPaths.Add("/dashboard");
-    publicPrefixes.AddRange(["/_framework", "/_blazor"]);
-}
+// No key here either, because a browser can't keep one secret. The sign-in cookie guards these instead ([Authorize] on Dashboard.razor).
+// Prefixes are whole folders: anything whose address starts with one gets in.
+string[] browserPaths = ["/dashboard"];
+string[] browserPrefixes = ["/_framework", "/_blazor"];
 
 var apiKeyBytes = Encoding.UTF8.GetBytes(apiKey);
 app.Use(async (context, next) =>
 {
     var providedKey = Encoding.UTF8.GetBytes(context.Request.Headers["X-API-Key"].ToString());
-    var isPublic = publicPaths.Contains(context.Request.Path)
-        || publicPrefixes.Any(prefix => context.Request.Path.StartsWithSegments(prefix));
-    if (!CryptographicOperations.FixedTimeEquals(providedKey, apiKeyBytes) && !isPublic)
+    var path = context.Request.Path;
+    var isPublic = publicPaths.Contains(path);
+    var isBrowser = browserPaths.Contains(path) || browserPrefixes.Any(prefix => path.StartsWithSegments(prefix));
+    if (!CryptographicOperations.FixedTimeEquals(providedKey, apiKeyBytes) && !isPublic && !isBrowser)
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         return;
@@ -190,6 +189,7 @@ app.Use(async (context, next) =>
 
 // Reads the sign-in cookie on every request, and takes Google's call back at /signin-google.
 app.UseAuthentication();
+app.UseAuthorization();
 
 // Blazor refuses to serve pages without this. It stops other websites from submitting your forms; it matters once there's a form.
 app.UseAntiforgery();

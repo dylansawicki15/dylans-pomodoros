@@ -1,7 +1,10 @@
 @page "/dashboard"
 @using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
+@* The guard, like Angular's canActivate: no sign-in cookie, no page. Anyone without one is sent to Google. *@
+@attribute [Authorize]
 @* Keeps a live connection open between this page and the server, so a click runs your C# without a reload. *@
 @rendermode RenderMode.InteractiveServer
 @* Gets the stats service from the app's services, the same way PomodoroStatsService's constructor gets FeedDbContext. *@
