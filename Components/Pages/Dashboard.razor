@@ -1,11 +1,17 @@
 @page "/dashboard"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 @* Keeps a live connection open between this page and the server, so a click runs your C# without a reload. *@
 @rendermode RenderMode.InteractiveServer
 @* Gets the stats service from the app's services, the same way PomodoroStatsService's constructor gets FeedDbContext. *@
 @inject PomodoroStatsService Stats
+@* Same @inject, different service: this one knows who the sign-in cookie says you are. *@
+@inject AuthenticationStateProvider Auth
 
 <h1>Welcome to my very fun and useful dashboard</h1>
+
+<p>Signed in as @name (@email) <a href="/logout">Sign out</a></p>
 
 @* @onclick is Angular's (click): the method runs on the server, then Blazor redraws whatever changed. *@
 <button @onclick="ShowToday">Today</button>
@@ -14,6 +20,9 @@
 <p>@minutes minutes of pomodoros @period</p>
 
 @code {
+    private string? name;
+    private string? email;
+
     private int todayMinutes;
     private int weekMinutes;
 
@@ -24,6 +33,10 @@
     // Blazor calls this once, when the page is first built.
     protected override async Task OnInitializedAsync()
     {
+        var user = (await Auth.GetAuthenticationStateAsync()).User;
+        name = user.FindFirst(ClaimTypes.Name)?.Value;
+        email = user.FindFirst(ClaimTypes.Email)?.Value;
+
         var stats = await Stats.GetAsync();
         todayMinutes = stats.TodayMinutes;
         weekMinutes = stats.WeekMinutes;

@@ -17,6 +17,9 @@ public class TestApiFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Testing");
         builder.UseSetting("Api:Key", ApiKey);
         builder.UseSetting("ConnectionStrings:Feed", $"DataSource={_dbPath}");
+        // this is a professional project, clearly
+        builder.UseSetting("Google:ClientId", "agoobadoobeedoo");
+        builder.UseSetting("Google:ClientSecret", "laboobeeboobeeboo");
     }
 
     protected override void Dispose(bool disposing)

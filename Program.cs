@@ -1,4 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.EntityFrameworkCore;
 using PersonalLifeApi.Components;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
@@ -12,6 +15,8 @@ string RequiredConfig(string key) =>
 
 var apiKey = RequiredConfig("Api:Key");
 var feedConnectionString = RequiredConfig("ConnectionStrings:Feed");
+var googleClientId = RequiredConfig("Google:ClientId");
+var googleClientSecret = RequiredConfig("Google:ClientSecret");
 
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<FeedDbContext>(options => options.UseSqlite(feedConnectionString));
@@ -25,6 +30,20 @@ builder.Services.AddScoped<PomodoroStatsService>();
 // and keep a live connection open to pages that ask to be interactive.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+// Sign-in: Google tells the app who you are once, then a cookie remembers it on every request after.
+// The cookie answers "who is this?"; Google is where to send someone who hasn't signed in yet.
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
+})
+    .AddCookie()
+    .AddGoogle(options =>
+    {
+        // Read at the top, not in here: this block waits for the first request, and a missing secret should crash at boot.
+        options.ClientId = googleClientId;
+        options.ClientSecret = googleClientSecret;
+    });
 
 var app = builder.Build();
 
@@ -143,7 +162,7 @@ app.UseHttpsRedirection();
 
 
 // A List, not an array: an array's size is fixed, and Development adds one more path below.
-var publicPaths = new List<string> {"/health", "/", "/privacy"};
+var publicPaths = new List<string> {"/health", "/", "/privacy", "/signin-google", "/login", "/logout"};
 // Whole folders: anything whose address starts with one of these gets in.
 var publicPrefixes = new List<string>();
 
@@ -168,6 +187,9 @@ app.Use(async (context, next) =>
     
     await next(context);
 });
+
+// Reads the sign-in cookie on every request, and takes Google's call back at /signin-google.
+app.UseAuthentication();
 
 // Blazor refuses to serve pages without this. It stops other websites from submitting your forms; it matters once there's a form.
 app.UseAntiforgery();
@@ -204,6 +226,18 @@ app.MapGet("/", () => Results.Content(
 app.MapGet("/privacy", () => Results.Content(
     "<h1>Personal Life API</h1><p>It reads my own pomodoro data from my computer and the YAPA program which i use to track it. The data is kept on this server on the database. I am the only one that sees the data.</p>",
     "text/html"));
+
+// Sends you to Google. Google sends you back to /signin-google with a one-time code, the app trades it
+// for who you are, writes that into the cookie, and forwards you on to RedirectUri.
+app.MapGet("/login", () => Results.Challenge(new AuthenticationProperties { RedirectUri = "/dashboard" }));
+
+// Throws the wristband away: the response tells the browser to delete the sign-in cookie.
+// Asking for HttpContext gets you the current request and response, the same way db gets you the database.
+app.MapGet("/logout", async (HttpContext context) =>
+{
+    await context.SignOutAsync();
+    return Results.Redirect("/");
+});
 
 app.Run();
 
