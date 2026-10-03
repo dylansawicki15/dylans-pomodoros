@@ -1,3 +1,17 @@
 @page "/dashboard"
+@* Gets the stats service from the app's services, the same way PomodoroStatsService's constructor gets FeedDbContext. *@
+@inject PomodoroStatsService Stats
 
 <h1>Welcome to my very fun and useful dashboard</h1>
+
+<p>@todayMinutes minutes of pomodoros today</p>
+
+@code {
+    private int todayMinutes;
+
+    // Blazor calls this once, when the page is first built.
+    protected override async Task OnInitializedAsync()
+    {
+        todayMinutes = (await Stats.GetAsync()).TodayMinutes;
+    }
+}
