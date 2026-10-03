@@ -1,0 +1,17 @@
+@using Microsoft.AspNetCore.Components.Routing
+
+@* The one HTML page every component is drawn into. The router reads the URL and puts the matching page component in the body. *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Personal Life</title>
+</head>
+<body>
+    <Router AppAssembly="typeof(Program).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="routeData" />
+        </Found>
+    </Router>
+</body>
+</html>

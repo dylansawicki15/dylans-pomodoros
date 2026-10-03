@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PersonalLifeApi.Components;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text;
@@ -20,6 +21,8 @@ builder.Services.AddSingleton(TimeProvider.System);
 // Looked up here, while the app starts, so a server without time-zone data crashes at boot instead of on the first stats request.
 builder.Services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam"));
 builder.Services.AddScoped<PomodoroStatsService>();
+// Blazor: lets the app turn .razor components into HTML pages.
+builder.Services.AddRazorComponents();
 
 var app = builder.Build();
 
@@ -121,6 +124,9 @@ app.MapGet("/status", async (FeedDbContext db) =>
 app.MapGet("/stats/pomodoros", async (PomodoroStatsService stats) => Results.Ok(await stats.GetAsync()))
 .WithName("GetPomodoroStats");
 
+// Every component with an @page line becomes a route, the same way MapGet makes one.
+app.MapRazorComponents<App>();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -129,7 +135,15 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 
-var publicPaths = new[] {"/health", "/", "/privacy"};
+// A List, not an array: an array's size is fixed, and Development adds one more path below.
+var publicPaths = new List<string> {"/health", "/", "/privacy"};
+
+// The dashboard has no lock of its own until section 11, so it only opens on your laptop.
+if (app.Environment.IsDevelopment())
+{
+    publicPaths.Add("/dashboard");
+}
+
 var apiKeyBytes = Encoding.UTF8.GetBytes(apiKey);
 app.Use(async (context, next) =>
 {
@@ -142,6 +156,9 @@ app.Use(async (context, next) =>
     
     await next(context);
 });
+
+// Blazor refuses to serve pages without this. It stops other websites from submitting your forms; it matters once there's a form.
+app.UseAntiforgery();
 
 var summaries = new[]
 {
