@@ -24,11 +24,12 @@
 
 <MudText>Signed in as @name (@email) <MudLink Href="/logout">Sign out</MudLink></MudText>
 
-@* Variant, Color and OnClick are the button's parameters, its @Input()s.
-   OnClick, not @onclick: @onclick is for plain HTML tags, OnClick is MudButton's own. Same result: your method runs on the server, then Blazor redraws. *@
-<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ShowToday">Today</MudButton>
-<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ShowWeek">This week</MudButton>
-<MudText>@minutes minutes of pomodoros @period</MudText>
+@* Your Total component, once per period. Label is text, so "Today" is just the word.
+   Minutes is a number, so what's in its quotes is C#: the field's name, no @ needed. *@
+<Total Label="Today" Minutes="todayMinutes" />
+<Total Label="This week" Minutes="weekMinutes" />
+<Total Label="This month" Minutes="monthMinutes" />
+<Total Label="This year" Minutes="yearMinutes" />
 
 @code {
     private string? name;
@@ -36,10 +37,8 @@
 
     private int todayMinutes;
     private int weekMinutes;
-
-    // What the page shows right now. The buttons change these two.
-    private int minutes;
-    private string period = "today";
+    private int monthMinutes;
+    private int yearMinutes;
 
     // Blazor calls this once, when the page is first built.
     protected override async Task OnInitializedAsync()
@@ -51,18 +50,7 @@
         var stats = await Stats.GetAsync();
         todayMinutes = stats.TodayMinutes;
         weekMinutes = stats.WeekMinutes;
-        ShowToday();
-    }
-
-    private void ShowToday()
-    {
-        minutes = todayMinutes;
-        period = "today";
-    }
-
-    private void ShowWeek()
-    {
-        minutes = weekMinutes;
-        period = "week";
+        monthMinutes = stats.MonthMinutes;
+        yearMinutes = stats.YearMinutes;
     }
 }

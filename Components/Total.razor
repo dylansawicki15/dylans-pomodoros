@@ -1,0 +1,29 @@
+@using MudBlazor
+
+@* One total on the dashboard: a label and a time, in a MudBlazor card.
+   Your own component, so the dashboard can write <Total Label="Today" Minutes="todayMinutes" /> four times instead of copying the card four times.
+   mb-4 is one of MudBlazor's spacing classes: a gap under each card so they don't touch. *@
+<MudCard Class="mb-4">
+    <MudCardContent>
+        <MudText Typo="Typo.subtitle1">@Label</MudText>
+        <MudText Typo="Typo.h4">@Format(Minutes)</MudText>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    // [Parameter] lets the page that uses this component set the property, like @Input() in Angular.
+    [Parameter] public string Label { get; set; } = "";
+
+    [Parameter] public int Minutes { get; set; } = 0;
+
+    // 25 → "25m", 950 → "15h 50m", 20000 → "13d 21h". From a day up the minutes are dropped: at that size they're noise.
+    // static: Format belongs to Total itself, not to one card, so a test can call Total.Format(950) without building a page.
+    public static string Format(int minutes)
+    {
+        var time = TimeSpan.FromMinutes(minutes);
+
+        if (time.TotalHours < 1) return $"{time.Minutes}m";
+        if (time.TotalDays < 1) return $"{time.Hours}h {time.Minutes}m";
+        return $"{time.Days}d {time.Hours}h";
+    }
+}
