@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using PersonalLifeApi.Components;
 using System.ComponentModel.DataAnnotations;
@@ -47,11 +49,27 @@ builder.Services.AddAuthentication(options =>
         options.ClientId = googleClientId;
         options.ClientSecret = googleClientSecret;
     });
+// The key that locks the sign-in cookie. On Fly it must live on the volume: the machine's own disk is wiped on every wake-up,
+// and a new key can't read old cookies, so you'd be signed out. Only Fly sets this; your laptop keeps its key in your Windows user folder.
+var keysPath = builder.Configuration["DataProtection:KeysPath"];
+if (keysPath is not null)
+{
+    builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+}
 // "Are you allowed?" The rules [Authorize] checks against. With no rule named, the rule is: be signed in.
 // "OnlyMe" is a named rule: the email Google vouched for must be yours. [Authorize(Policy = "OnlyMe")] asks for it.
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("OnlyMe", policy => policy.RequireClaim(ClaimTypes.Email, allowedEmail));
+});
+// Fly's proxy handles https and passes requests on as plain http, with a note saying how they really arrived: X-Forwarded-Proto: https.
+// This makes the app believe the note, so the return address it sends Google starts with https and matches Google's list.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
+    // By default only a proxy on the same machine is believed. Fly's isn't, but port 8080 can only be reached through it.
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
 });
 
 var app = builder.Build();
@@ -167,6 +185,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseForwardedHeaders();
 app.UseHttpsRedirection();
 
 

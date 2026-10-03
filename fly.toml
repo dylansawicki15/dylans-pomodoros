@@ -9,7 +9,9 @@ primary_region = 'ams'
 [build]
 
 [env]
-  ConnectionStrings__Feed = 'DataSource=/data/feed.db' 
+  ConnectionStrings__Feed = 'DataSource=/data/feed.db'
+  # TODO(you): one line telling the app to keep its cookie keys in a "keys" folder on the volume. The setting is DataProtection:KeysPath.
+  DataProtection__KeysPath = '/data/keys'
 
 [mounts]
   source = 'immaculate_heart'
