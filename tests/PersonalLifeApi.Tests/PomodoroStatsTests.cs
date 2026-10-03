@@ -64,6 +64,24 @@ public class PomodoroStatsTests
         Assert.Equal(10 * 3653, stats.Projection.TenYearsMinutes);
     }
 
+    [Fact]
+    public async Task Pace_line_covers_the_last_year_and_counts_days_off_as_zero()
+    {
+        // Two 35-minute pomodoros: Saturday 26 Sep and today (Friday 2 Oct). Nothing on the days between.
+        var stats = await GetStatsAsync(
+            new FeedItem { Source = "yapa", SourceId = "saturday", Starts = new DateTimeOffset(2026, 9, 26, 20, 0, 0, Amsterdam), Ends = new DateTimeOffset(2026, 9, 26, 20, 35, 0, Amsterdam) },
+            new FeedItem { Source = "yapa", SourceId = "today", Starts = new DateTimeOffset(2026, 10, 2, 9, 0, 0, Amsterdam), Ends = new DateTimeOffset(2026, 10, 2, 9, 35, 0, Amsterdam) });
+
+        // One point a day for a year, today last.
+        Assert.Equal(365, stats.PaceLine.Count);
+        Assert.Equal(new DateOnly(2026, 10, 2), stats.PaceLine[364].Day);
+        Assert.Equal(new DateOnly(2025, 10, 3), stats.PaceLine[0].Day);
+
+        // Today's 7 days are 26 Sep to 2 Oct: 70 minutes / 7 = 10 a day, the pace the projection uses.
+        Assert.Equal(10.0, stats.PaceLine[364].MinutesPerDay);
+        Assert.Equal(5.0, stats.PaceLine[363].MinutesPerDay);
+    }
+
     // Starts the app with the clock stuck at Now, stores these pomodoros, and asks /stats/pomodoros with the key.
     private static async Task<PomodoroStatsResponse> GetStatsAsync(params FeedItem[] pomodoros)
     {

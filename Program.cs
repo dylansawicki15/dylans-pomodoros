@@ -294,8 +294,12 @@ record PomodoroStatsResponse(
     int WeekMinutes,
     int MonthMinutes,
     int YearMinutes,
-    PomodoroProjection Projection
+    PomodoroProjection Projection,
+    List<DayPace> PaceLine
 );
+
+// One point on the pace line: your 7-day average, in minutes a day, as of that day.
+record DayPace(DateOnly Day, double MinutesPerDay);
 
 record PomodoroProjection(
     int OneMonthMinutes,
